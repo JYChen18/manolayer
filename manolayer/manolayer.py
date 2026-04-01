@@ -330,7 +330,7 @@ class ManoLayer(torch.nn.Module):
 
     def forward(
         self, pose_coeffs: torch.Tensor, betas: Optional[torch.Tensor] = None, **kwargs
-    ):
+    ) -> ManoOutput:
         if self.rot_mode == "axisang":
             rot_blob = self.rotation_by_axisang(pose_coeffs)
         elif self.rot_mode == "quat":
