@@ -15,13 +15,15 @@ assets/mano/models
 
 2. Remove chumpy in the mano models using another environment with chumpy
 ```bash
-pip install git+https://github.com/mattloper/chumpy 
+conda create -n tmp python=3.10 
+conda activate tmp
+pip install chumpy==0.70 numpy==1.23.0
 python clean_ch.py
 ```
 
 # Installation 
 ```bash
-uv sync
+uv add https://github.com/JYChen18/manolayer.git
 ```
 
 

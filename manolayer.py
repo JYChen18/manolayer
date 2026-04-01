@@ -132,7 +132,7 @@ class ManoLayer(torch.nn.Module):
 
         # load model according to side flag
         mano_assets_path = os.path.join(
-            mano_assets_root, "models", f"MANO_{side.upper()}.pkl"
+            mano_assets_root, "models_clean", f"MANO_{side.upper()}.pkl"
         )  # eg.  MANO_RIGHT.pkl
         assert os.path.isfile(
             mano_assets_path
@@ -154,14 +154,13 @@ class ManoLayer(torch.nn.Module):
             torch.from_numpy(smpl_data["v_template"]).float().unsqueeze(0),
         )
         self.register_buffer(
-            "th_J_regressor", torch.from_numpy(smpl_data["J_regressor"].toarray()).float()
+            "th_J_regressor",
+            torch.from_numpy(smpl_data["J_regressor"].toarray()).float(),
         )
         self.register_buffer(
             "th_weights", torch.from_numpy(smpl_data["weights"]).float()
         )
-        self.register_buffer(
-            "th_faces", torch.from_numpy(smpl_data["f"]).long()
-        )
+        self.register_buffer("th_faces", torch.from_numpy(smpl_data["f"]).long())
 
         kintree_table = smpl_data["kintree_table"]
         self.kintree_parents = list(kintree_table[0].tolist())
@@ -207,7 +206,9 @@ class ManoLayer(torch.nn.Module):
 
     def rotation_by_quaternion(self, pose_coeffs):
         batch_size = pose_coeffs.shape[0]
-        full_quat_poses = roma.quat_wxyz_to_xyzw(pose_coeffs.view((batch_size, 16, 4)))  # [B. 16, 4]
+        full_quat_poses = roma.quat_wxyz_to_xyzw(
+            pose_coeffs.view((batch_size, 16, 4))
+        )  # [B. 16, 4]
         full_rots = roma.unitquat_to_rotmat(full_quat_poses)  # [B, 16, 3, 3]
         full_poses = roma.unitquat_to_rotvec(full_quat_poses).reshape(
             batch_size, -1
