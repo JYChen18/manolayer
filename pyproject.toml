@@ -10,5 +10,5 @@ dependencies = [
     "torch>=2.0.0",
 ]
 
-[tool.setuptools.packages.find]
-include = ["manolayer.py"]
+[tool.setuptools]
+py-modules = ["manolayer"]

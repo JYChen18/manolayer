@@ -24,7 +24,7 @@ MANOOutput = namedtuple(
 MANOOutput.__new__.__defaults__ = (None,) * len(MANOOutput._fields)
 
 
-def lrotmin(p):
+def _lrotmin(p):
     if isinstance(p, torch.Tensor):
         p = p.detach().cpu().numpy()
     else:
@@ -39,7 +39,7 @@ def lrotmin(p):
     return (rot_mats - np.eye(3)).reshape(-1)
 
 
-def ready_arguments(fname_or_dict, posekey4vposed="pose"):
+def _ready_arguments(fname_or_dict, posekey4vposed="pose"):
     if not isinstance(fname_or_dict, dict):
         dd = pickle.load(open(fname_or_dict, "rb"), encoding="latin1")
     else:
@@ -76,17 +76,17 @@ def ready_arguments(fname_or_dict, posekey4vposed="pose"):
         J_tmpy = dd["J_regressor"].dot(v_shaped[:, 1])
         J_tmpz = dd["J_regressor"].dot(v_shaped[:, 2])
         dd["J"] = np.vstack((J_tmpx, J_tmpy, J_tmpz)).T
-        pose_map_res = lrotmin(dd[posekey4vposed])
+        pose_map_res = _lrotmin(dd[posekey4vposed])
         dd["v_posed"] = v_shaped + dd["posedirs"].dot(pose_map_res)
     else:
-        pose_map_res = lrotmin(dd[posekey4vposed])
+        pose_map_res = _lrotmin(dd[posekey4vposed])
         dd_add = dd["posedirs"].dot(pose_map_res)
         dd["v_posed"] = dd["v_template"] + dd_add
 
     return dd
 
 
-def th_with_zeros(tensor):
+def _th_with_zeros(tensor):
     batch_size = tensor.shape[0]
     padding = tensor.new([0.0, 0.0, 0.0, 1.0])
     padding.requires_grad = False
@@ -139,7 +139,7 @@ class ManoLayer(torch.nn.Module):
         ), f"Can not find MANO assets {mano_assets_path}, please follow steps in README.md"
 
         # parse and register stuff
-        smpl_data = ready_arguments(mano_assets_path)
+        smpl_data = _ready_arguments(mano_assets_path)
         self.register_buffer(
             "th_betas", torch.from_numpy(smpl_data["betas"]).float().unsqueeze(0)
         )
@@ -263,7 +263,7 @@ class ManoLayer(torch.nn.Module):
         # ============== Constructing $ G_{k} $ >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         # Global rigid transformation
         root_j = J[:, 0, :].contiguous().view(batch_size, 3, 1)
-        root_transf = th_with_zeros(torch.cat([root_rot, root_j], 2))
+        root_transf = _th_with_zeros(torch.cat([root_rot, root_j], 2))
 
         lev1_idxs = [1, 4, 7, 10, 13]
         lev2_idxs = [2, 5, 8, 11, 14]
@@ -279,7 +279,7 @@ class ManoLayer(torch.nn.Module):
         # Get lev1 results
         all_transforms = [root_transf.unsqueeze(1)]
         lev1_j_rel = lev1_j - root_j.transpose(1, 2)
-        lev1_rel_transform_flt = th_with_zeros(
+        lev1_rel_transform_flt = _th_with_zeros(
             torch.cat([lev1_rots, lev1_j_rel.unsqueeze(3)], 3).view(-1, 3, 4)
         )
         root_trans_flt = (
@@ -292,7 +292,7 @@ class ManoLayer(torch.nn.Module):
 
         # Get lev2 results
         lev2_j_rel = lev2_j - lev1_j
-        lev2_rel_transform_flt = th_with_zeros(
+        lev2_rel_transform_flt = _th_with_zeros(
             torch.cat([lev2_rots, lev2_j_rel.unsqueeze(3)], 3).view(-1, 3, 4)
         )
         lev2_flt = torch.matmul(lev1_flt, lev2_rel_transform_flt)
@@ -300,7 +300,7 @@ class ManoLayer(torch.nn.Module):
 
         # Get lev3 results
         lev3_j_rel = lev3_j - lev2_j
-        lev3_rel_transform_flt = th_with_zeros(
+        lev3_rel_transform_flt = _th_with_zeros(
             torch.cat([lev3_rots, lev3_j_rel.unsqueeze(3)], 3).view(-1, 3, 4)
         )
         lev3_flt = torch.matmul(lev2_flt, lev3_rel_transform_flt)
@@ -378,7 +378,7 @@ class ManoLayer(torch.nn.Module):
         global_tsl = th_transf_global[:, :, :3, 3:]  # (B, 16, 3, 1)
         global_tsl = global_tsl - center_joint.unsqueeze(-1)  # (B, [16], 3, 1)
         global_transf = torch.cat([global_rot, global_tsl], dim=3)  # (B, 16, 3, 4)
-        global_transf = th_with_zeros(global_transf.view(-1, 3, 4))
+        global_transf = _th_with_zeros(global_transf.view(-1, 3, 4))
         global_transf = global_transf.view(batch_size, 16, 4, 4)
 
         skinning_blob = {
