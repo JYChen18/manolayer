@@ -1,5 +1,4 @@
 import os
-import pickle
 import warnings
 from collections import namedtuple
 from typing import Optional
@@ -7,10 +6,11 @@ from typing import Optional
 import numpy as np
 import torch
 import roma
-from scipy.spatial.transform import Rotation as R
 
-MANOOutput = namedtuple(
-    "MANOOutput",
+from .helper import ready_arguments
+
+ManoOutput = namedtuple(
+    "ManoOutput",
     [
         "verts",
         "joints",
@@ -21,69 +21,7 @@ MANOOutput = namedtuple(
         "transforms_abs",
     ],
 )
-MANOOutput.__new__.__defaults__ = (None,) * len(MANOOutput._fields)
-
-
-def _lrotmin(p):
-    if isinstance(p, torch.Tensor):
-        p = p.detach().cpu().numpy()
-    else:
-        p = np.asarray(p)
-
-    if p.ndim == 1:
-        p = p.reshape(-1, 3)
-    elif p.ndim != 2 or p.shape[1] != 3:
-        p = p.reshape(-1, 3)
-
-    rot_mats = R.from_rotvec(p[1:]).as_matrix()
-    return (rot_mats - np.eye(3)).reshape(-1)
-
-
-def _ready_arguments(fname_or_dict, posekey4vposed="pose"):
-    if not isinstance(fname_or_dict, dict):
-        dd = pickle.load(open(fname_or_dict, "rb"), encoding="latin1")
-    else:
-        dd = fname_or_dict
-
-    want_shapemodel = "shapedirs" in dd
-    nposeparms = dd["kintree_table"].shape[1] * 3
-
-    if "trans" not in dd:
-        dd["trans"] = np.zeros(3)
-    if "pose" not in dd:
-        dd["pose"] = np.zeros(nposeparms)
-    if "shapedirs" in dd and "betas" not in dd:
-        dd["betas"] = np.zeros(dd["shapedirs"].shape[-1])
-
-    for s in [
-        "v_template",
-        "weights",
-        "posedirs",
-        "pose",
-        "trans",
-        "shapedirs",
-        "betas",
-        "J",
-    ]:
-        if (s in dd) and not hasattr(dd[s], "dterms"):
-            dd[s] = np.array(dd[s])
-
-    assert posekey4vposed in dd
-    if want_shapemodel:
-        dd["v_shaped"] = dd["shapedirs"].dot(dd["betas"]) + dd["v_template"]
-        v_shaped = dd["v_shaped"]
-        J_tmpx = dd["J_regressor"].dot(v_shaped[:, 0])
-        J_tmpy = dd["J_regressor"].dot(v_shaped[:, 1])
-        J_tmpz = dd["J_regressor"].dot(v_shaped[:, 2])
-        dd["J"] = np.vstack((J_tmpx, J_tmpy, J_tmpz)).T
-        pose_map_res = _lrotmin(dd[posekey4vposed])
-        dd["v_posed"] = v_shaped + dd["posedirs"].dot(pose_map_res)
-    else:
-        pose_map_res = _lrotmin(dd[posekey4vposed])
-        dd_add = dd["posedirs"].dot(pose_map_res)
-        dd["v_posed"] = dd["v_template"] + dd_add
-
-    return dd
+ManoOutput.__new__.__defaults__ = (None,) * len(ManoOutput._fields)
 
 
 def _th_with_zeros(tensor):
@@ -102,7 +40,7 @@ class ManoLayer(torch.nn.Module):
         rot_mode: str = "axisang",
         side: str = "right",
         center_idx: Optional[int] = None,
-        mano_assets_root: str = "assets/mano",
+        mano_assets_root: str = "assets/mano/models",
         use_pca: bool = False,
         flat_hand_mean: bool = True,  # Only used in pca mode
         ncomps: int = 15,  # Only used in pca mode
@@ -132,14 +70,14 @@ class ManoLayer(torch.nn.Module):
 
         # load model according to side flag
         mano_assets_path = os.path.join(
-            mano_assets_root, "models_clean", f"MANO_{side.upper()}.pkl"
+            mano_assets_root, f"MANO_{side.upper()}.pkl"
         )  # eg.  MANO_RIGHT.pkl
         assert os.path.isfile(
             mano_assets_path
         ), f"Can not find MANO assets {mano_assets_path}, please follow steps in README.md"
 
         # parse and register stuff
-        smpl_data = _ready_arguments(mano_assets_path)
+        smpl_data = ready_arguments(mano_assets_path)
         self.register_buffer(
             "th_betas", torch.from_numpy(smpl_data["betas"]).float().unsqueeze(0)
         )
@@ -400,7 +338,7 @@ class ManoLayer(torch.nn.Module):
 
         full_rots = rot_blob["full_rots"]  # TENSOR
         skinning_blob = self.skinning_layer(full_rots, betas)
-        output = MANOOutput(
+        output = ManoOutput(
             verts=skinning_blob["verts"],
             joints=skinning_blob["joints"],
             center_idx=self.center_idx,
