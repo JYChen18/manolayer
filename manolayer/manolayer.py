@@ -24,7 +24,7 @@ ManoOutput = namedtuple(
 ManoOutput.__new__.__defaults__ = (None,) * len(ManoOutput._fields)
 
 
-def _th_with_zeros(tensor):
+def th_with_zeros(tensor):
     batch_size = tensor.shape[0]
     padding = tensor.new([0.0, 0.0, 0.0, 1.0])
     padding.requires_grad = False
@@ -201,7 +201,7 @@ class ManoLayer(torch.nn.Module):
         # ============== Constructing $ G_{k} $ >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         # Global rigid transformation
         root_j = J[:, 0, :].contiguous().view(batch_size, 3, 1)
-        root_transf = _th_with_zeros(torch.cat([root_rot, root_j], 2))
+        root_transf = th_with_zeros(torch.cat([root_rot, root_j], 2))
 
         lev1_idxs = [1, 4, 7, 10, 13]
         lev2_idxs = [2, 5, 8, 11, 14]
@@ -217,7 +217,7 @@ class ManoLayer(torch.nn.Module):
         # Get lev1 results
         all_transforms = [root_transf.unsqueeze(1)]
         lev1_j_rel = lev1_j - root_j.transpose(1, 2)
-        lev1_rel_transform_flt = _th_with_zeros(
+        lev1_rel_transform_flt = th_with_zeros(
             torch.cat([lev1_rots, lev1_j_rel.unsqueeze(3)], 3).view(-1, 3, 4)
         )
         root_trans_flt = (
@@ -230,7 +230,7 @@ class ManoLayer(torch.nn.Module):
 
         # Get lev2 results
         lev2_j_rel = lev2_j - lev1_j
-        lev2_rel_transform_flt = _th_with_zeros(
+        lev2_rel_transform_flt = th_with_zeros(
             torch.cat([lev2_rots, lev2_j_rel.unsqueeze(3)], 3).view(-1, 3, 4)
         )
         lev2_flt = torch.matmul(lev1_flt, lev2_rel_transform_flt)
@@ -238,7 +238,7 @@ class ManoLayer(torch.nn.Module):
 
         # Get lev3 results
         lev3_j_rel = lev3_j - lev2_j
-        lev3_rel_transform_flt = _th_with_zeros(
+        lev3_rel_transform_flt = th_with_zeros(
             torch.cat([lev3_rots, lev3_j_rel.unsqueeze(3)], 3).view(-1, 3, 4)
         )
         lev3_flt = torch.matmul(lev2_flt, lev3_rel_transform_flt)
@@ -316,7 +316,7 @@ class ManoLayer(torch.nn.Module):
         global_tsl = th_transf_global[:, :, :3, 3:]  # (B, 16, 3, 1)
         global_tsl = global_tsl - center_joint.unsqueeze(-1)  # (B, [16], 3, 1)
         global_transf = torch.cat([global_rot, global_tsl], dim=3)  # (B, 16, 3, 4)
-        global_transf = _th_with_zeros(global_transf.view(-1, 3, 4))
+        global_transf = th_with_zeros(global_transf.view(-1, 3, 4))
         global_transf = global_transf.view(batch_size, 16, 4, 4)
 
         skinning_blob = {

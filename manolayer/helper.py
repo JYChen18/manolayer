@@ -77,9 +77,6 @@ def ready_arguments(fname_or_dict, posekey4vposed="pose"):
     if not isinstance(fname_or_dict, dict):
         dd = ChumpyUnpickler(open(fname_or_dict, "rb"), encoding="latin1").load()
         dd = _clean_chumpy_dict(dd)
-        import pdb
-
-        pdb.set_trace()
     else:
         dd = fname_or_dict
 
