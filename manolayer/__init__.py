@@ -1,1 +1,1 @@
-from .manolayer import ManoLayer, ManoOutput
+from .manolayer import LegacyManoLayer, LegacyManoOutput, ManoLayer, ManoOutput

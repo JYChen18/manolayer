@@ -19,6 +19,30 @@ from manolayer import ManoLayer
 mano_layer = ManoLayer(mano_assets_root="assets/mano/models", side="right")
 ```
 
+# Staged API
+The original implementation is still available as `LegacyManoLayer`. The public
+`ManoLayer` now exposes the MANO forward pass as reusable stages:
+
+```python
+from manolayer import ManoLayer
+
+mano_layer = ManoLayer(mano_assets_root="assets/mano/models", side="right")
+
+mano_layer.update_beta(betas)
+qpos = mano_layer.pose_to_qpos(
+    pose_coeffs,
+    rot_mode="axisang",
+    center_idx=0,
+)
+link_poses = mano_layer.forward_kinematics(qpos)
+output = mano_layer.get_verts_joints(link_poses)
+```
+
+The staged `qpos` has shape `(B, 67)`: root position `(3)`, root quaternion
+`(4)`, then 15 joint quaternions. `center_idx` is only accepted by
+`pose_to_qpos`; the staged API supports `center_idx=None` and `center_idx=0`.
+The final `ManoOutput` only contains `verts` and `joints`.
+
 # Acknowledgement
 - [mano](https://mano.is.tue.mpg.de/)
 - [manotorch](https://github.com/lixiny/manotorch)
