@@ -119,3 +119,12 @@ def ready_arguments(fname_or_dict, posekey4vposed="pose"):
         dd["v_posed"] = dd["v_template"] + dd_add
 
     return dd
+
+
+def th_with_zeros(tensor):
+    batch_size = tensor.shape[0]
+    padding = tensor.new([0.0, 0.0, 0.0, 1.0])
+    padding.requires_grad = False
+    concat_list = [tensor, padding.view(1, 1, 4).repeat(batch_size, 1, 1)]
+    cat_res = torch.cat(concat_list, 1)
+    return cat_res

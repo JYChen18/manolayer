@@ -6,9 +6,10 @@ dist/
 wheels/
 *.egg-info
 
-assets/
+exports/
 
 # Virtual environments
 .venv
 
 .vscode
+.DS_Store
